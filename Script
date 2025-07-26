@@ -105,12 +105,6 @@ toggleBtn.MouseButton1Click:Connect(function()
 	toggleBtn.BackgroundColor3 = ultraInstinctEnabled and Color3.fromRGB(0, 100, 200) or Color3.fromRGB(80,0,0)
 end)
 
-wallToggle.MouseButton1Click:Connect(function()
-	wallCheckEnabled = not wallCheckEnabled
-	wallToggle.Text = "Wall Check: " .. (wallCheckEnabled and "ON" or "OFF")
-	wallToggle.BackgroundColor3 = wallCheckEnabled and Color3.fromRGB(0, 100, 200) or Color3.fromRGB(100, 0, 0)
-end)
-
 -- Notify
 local function notify(msg)
 	pcall(function()
@@ -126,6 +120,7 @@ end
 local function playDodge()
 	if not canDodge then return end
 	canDodge = false
+
 	local char = lp.Character
 	if not char then return end
 	local hrp = char:FindFirstChild("HumanoidRootPart")
@@ -150,13 +145,16 @@ local function playDodge()
 		offset = -hrp.CFrame.LookVector * distance
 	end
 
+	-- Play animation
 	local anim = Instance.new("Animation")
 	anim.AnimationId = dodgeAnims[dir]
 	local track = hum:LoadAnimation(anim)
 	track:Play()
 
+	-- Move player
 	char:PivotTo(CFrame.new(hrp.Position + offset))
 
+	-- Reset cooldown
 	task.delay(2, function()
 		canDodge = true
 	end)
