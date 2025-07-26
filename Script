@@ -2,148 +2,144 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local lp = Players.LocalPlayer
 
--- === Custom Dodge Animations (Replace these) ===
-local DodgeLeftAnimId = "rbxassetid://17317199799"
-local DodgeRightAnimId = "rbxassetid://17317201942"
-local DodgeForwardAnimId = "rbxassetid://17317203199"
-local DodgeBackAnimId = "rbxassetid://17317204915"
+-- Settings
+local ultraInstinctOn = false
+local currentDirection = 1
+local lastDodge = 0
+local dodgeCooldown = 1
+local radius = 20
+local directions = {"Left", "Right", "Forward", "Backward"}
 
--- === Animation IDs to Detect ===
-local TargetAnimIds = {
-    ["126830014841198"] = true, ["126355327951215"] = true, ["121086746534252"] = true,
-    ["18885909645"] = true, ["98456918873918"] = true, ["105458270463374"] = true,
-    ["83829782357897"] = true, ["125403313786645"] = true, ["118298475669935"] = true,
-    ["82113744478546"] = true, ["70371667919898"] = true, ["99135633258223"] = true,
-    ["97167027849946"] = true, ["109230267448394"] = true, ["139835501033932"] = true,
-    ["126896426760253"] = true, ["109667959938617"] = true, ["126681776859538"] = true,
-    ["129976080405072"] = true, ["121293883585738"] = true
+-- Replace with your real animation IDs
+local dodgeAnims = {
+	Left = "rbxassetid://YOUR_LEFT_ANIM_ID",
+	Right = "rbxassetid://YOUR_RIGHT_ANIM_ID",
+	Forward = "rbxassetid://YOUR_FORWARD_ANIM_ID",
+	Backward = "rbxassetid://YOUR_BACKWARD_ANIM_ID"
 }
 
--- === GUI Setup ===
-local gui = Instance.new("ScreenGui", lp:WaitForChild("PlayerGui"))
-gui.Name = "UltraInstinctGUI"
+-- Killer anim IDs to detect
+local killerAnims = {
+	"126830014841198", "126355327951215", "121086746534252", "18885909645",
+	"98456918873918", "105458270463374", "83829782357897", "125403313786645",
+	"118298475669935", "82113744478546", "70371667919898", "99135633258223",
+	"97167027849946", "109230267448394", "139835501033932", "126896426760253",
+	"109667959938617", "126681776859538", "129976080405072", "121293883585738"
+}
 
-local box = Instance.new("TextBox")
-box.Size = UDim2.new(0, 120, 0, 30)
-box.Position = UDim2.new(0, 20, 0, 100)
-box.Text = "20"
-box.PlaceholderText = "Radius"
-box.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-box.TextColor3 = Color3.new(1, 1, 1)
-box.ClearTextOnFocus = false
-box.Parent = gui
+-- GUI
+local function createGui()
+	local gui = Instance.new("ScreenGui", lp:WaitForChild("PlayerGui"))
+	gui.Name = "UltraInstinctGui"
+	gui.ResetOnSpawn = false
 
-local toggle = Instance.new("TextButton")
-toggle.Size = UDim2.new(0, 140, 0, 30)
-toggle.Position = UDim2.new(0, 20, 0, 140)
-toggle.Text = "Ultra Instinct: OFF"
-toggle.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-toggle.TextColor3 = Color3.new(1, 1, 1)
-toggle.Parent = gui
+	local toggle = Instance.new("TextButton", gui)
+	toggle.Position = UDim2.new(0, 20, 0, 100)
+	toggle.Size = UDim2.new(0, 160, 0, 40)
+	toggle.Text = "Ultra Instinct: OFF"
+	toggle.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+	toggle.TextColor3 = Color3.new(1, 1, 1)
+	toggle.Font = Enum.Font.Gotham
+	toggle.TextScaled = true
 
-local directionButton = Instance.new("TextButton")
-directionButton.Size = UDim2.new(0, 140, 0, 30)
-directionButton.Position = UDim2.new(0, 20, 0, 180)
-directionButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-directionButton.TextColor3 = Color3.new(1, 1, 1)
-directionButton.Text = "Dodge: Backward"
-directionButton.Parent = gui
+	local directionButton = Instance.new("TextButton", gui)
+	directionButton.Position = UDim2.new(0, 20, 0, 150)
+	directionButton.Size = UDim2.new(0, 160, 0, 40)
+	directionButton.Text = "Dodge: Left"
+	directionButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+	directionButton.TextColor3 = Color3.new(1, 1, 1)
+	directionButton.Font = Enum.Font.Gotham
+	directionButton.TextScaled = true
 
--- === State ===
-local ultraInstinctOn = false
-local directions = { "Left", "Right", "Forward", "Backward" }
-local currentDirection = 4
-local lastDodgeTime = 0
-local dodgeCooldown = 1 -- seconds
+	local radiusBox = Instance.new("TextBox", gui)
+	radiusBox.Position = UDim2.new(0, 20, 0, 200)
+	radiusBox.Size = UDim2.new(0, 160, 0, 40)
+	radiusBox.Text = tostring(radius)
+	radiusBox.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+	radiusBox.TextColor3 = Color3.new(1, 1, 1)
+	radiusBox.Font = Enum.Font.Gotham
+	radiusBox.TextScaled = true
 
-toggle.MouseButton1Click:Connect(function()
-    ultraInstinctOn = not ultraInstinctOn
-    toggle.Text = ultraInstinctOn and "Ultra Instinct: ON" or "Ultra Instinct: OFF"
-    toggle.BackgroundColor3 = ultraInstinctOn and Color3.fromRGB(0, 170, 255) or Color3.fromRGB(50, 50, 50)
-end)
+	-- Toggle logic
+	toggle.MouseButton1Click:Connect(function()
+		ultraInstinctOn = not ultraInstinctOn
+		toggle.Text = ultraInstinctOn and "Ultra Instinct: ON" or "Ultra Instinct: OFF"
+		toggle.BackgroundColor3 = ultraInstinctOn and Color3.fromRGB(0, 170, 255) or Color3.fromRGB(50, 50, 50)
+	end)
 
-directionButton.MouseButton1Click:Connect(function()
-    currentDirection += 1
-    if currentDirection > #directions then currentDirection = 1 end
-    directionButton.Text = "Dodge: " .. directions[currentDirection]
-end)
+	directionButton.MouseButton1Click:Connect(function()
+		currentDirection += 1
+		if currentDirection > #directions then currentDirection = 1 end
+		directionButton.Text = "Dodge: " .. directions[currentDirection]
+	end)
 
--- === Helpers ===
-local function getRadius()
-    local n = tonumber(box.Text)
-    return n or 20
+	radiusBox.FocusLost:Connect(function()
+		local num = tonumber(radiusBox.Text)
+		if num then
+			radius = num
+		end
+	end)
+
+	return gui
 end
 
-local function isPlayingTargetAnim(hum)
-    if not hum then return false end
-    for _, track in ipairs(hum:GetPlayingAnimationTracks()) do
-        local id = track.Animation and track.Animation.AnimationId or ""
-        id = id:match("%d+")
-        if id and TargetAnimIds[id] then
-            return true
-        end
-    end
-    return false
+local function playDodge()
+	local char = lp.Character
+	if not char then return end
+	local hrp = char:FindFirstChild("HumanoidRootPart")
+	local hum = char:FindFirstChildOfClass("Humanoid")
+	if not hrp or not hum then return end
+
+	local dir = directions[currentDirection]
+	local offset = Vector3.new()
+
+	if dir == "Left" then
+		offset = -hrp.CFrame.RightVector * 7
+	elseif dir == "Right" then
+		offset = hrp.CFrame.RightVector * 7
+	elseif dir == "Forward" then
+		offset = hrp.CFrame.LookVector * 7
+	elseif dir == "Backward" then
+		offset = -hrp.CFrame.LookVector * 7
+	end
+
+	-- Play animation
+	local anim = Instance.new("Animation")
+	anim.AnimationId = dodgeAnims[dir]
+	local track = hum:LoadAnimation(anim)
+	track:Play()
+
+	-- Instant TP
+	hrp.CFrame = hrp.CFrame + offset
 end
 
-local function getClosestThreat()
-    local myChar = lp.Character
-    if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
-    local hrp = myChar.HumanoidRootPart
-    local closest, shortest = nil, getRadius()
-
-    for _, plr in ipairs(Players:GetPlayers()) do
-        if plr ~= lp and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
-            local dist = (plr.Character.HumanoidRootPart.Position - hrp.Position).Magnitude
-            if dist <= shortest and isPlayingTargetAnim(plr.Character:FindFirstChildOfClass("Humanoid")) then
-                closest = plr.Character.HumanoidRootPart
-                shortest = dist
-            end
-        end
-    end
-    return closest
-end
-
-local function playDodgeAnimation(animId)
-    local char = lp.Character
-    if not char then return end
-    local hum = char:FindFirstChildOfClass("Humanoid")
-    if not hum then return end
-    local anim = Instance.new("Animation")
-    anim.AnimationId = animId
-    local track = hum:LoadAnimation(anim)
-    track:Play()
-end
-
--- === Main Logic ===
+-- Watch killer animations
 RunService.Heartbeat:Connect(function()
-    if not ultraInstinctOn then return end
-    if tick() - lastDodgeTime < dodgeCooldown then return end
+	if not ultraInstinctOn then return end
+	if tick() - lastDodge < dodgeCooldown then return end
 
-    local threat = getClosestThreat()
-    local char = lp.Character
-    if not threat or not char or not char:FindFirstChild("HumanoidRootPart") then return end
+	for _, plr in ipairs(Players:GetPlayers()) do
+		if plr ~= lp and plr.Character and (plr.Character.HumanoidRootPart.Position - lp.Character.HumanoidRootPart.Position).Magnitude < radius then
+			local animator = plr.Character:FindFirstChildWhichIsA("Humanoid") and plr.Character:FindFirstChildWhichIsA("Humanoid"):FindFirstChildOfClass("Animator")
+			if animator then
+				for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
+					if table.find(killerAnims, tostring(track.Animation.AnimationId):match("%d+")) then
+						lastDodge = tick()
+						playDodge()
+						return
+					end
+				end
+			end
+		end
+	end
+end)
 
-    local hrp = char.HumanoidRootPart
-    local rootCF = hrp.CFrame
-    local dodgeDir = Vector3.zero
-    local animToPlay = ""
+-- GUI + Persistence
+createGui()
 
-    if directions[currentDirection] == "Left" then
-        dodgeDir = -rootCF.RightVector
-        animToPlay = DodgeLeftAnimId
-    elseif directions[currentDirection] == "Right" then
-        dodgeDir = rootCF.RightVector
-        animToPlay = DodgeRightAnimId
-    elseif directions[currentDirection] == "Forward" then
-        dodgeDir = rootCF.LookVector
-        animToPlay = DodgeForwardAnimId
-    elseif directions[currentDirection] == "Backward" then
-        dodgeDir = -rootCF.LookVector
-        animToPlay = DodgeBackAnimId
-    end
-
-    hrp.Velocity = dodgeDir.Unit * 20
-    playDodgeAnimation(animToPlay)
-    lastDodgeTime = tick()
+lp.CharacterAdded:Connect(function()
+	task.wait(1)
+	if not lp:WaitForChild("PlayerGui"):FindFirstChild("UltraInstinctGui") then
+		createGui()
+	end
 end)
