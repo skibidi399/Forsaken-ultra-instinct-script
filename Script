@@ -182,6 +182,8 @@ RunService.Heartbeat:Connect(function()
 	if not char or not char:FindFirstChild("HumanoidRootPart") then return end
 	local radius = 25
 
+	local dodgedThisFrame = false
+
 	for _, plr in ipairs(Players:GetPlayers()) do
 		if plr ~= lp and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
 			local dist = (plr.Character.HumanoidRootPart.Position - char.HumanoidRootPart.Position).Magnitude
@@ -192,14 +194,17 @@ RunService.Heartbeat:Connect(function()
 					for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
 						local animId = tostring(track.Animation.AnimationId):match("%d+")
 						if table.find(killerAnims, animId) then
-							if tick() - lastNotifTime >= notifCooldown then
-								lastNotifTime = tick()
-								notify("Killer animation detected!")
+							if not dodgedThisFrame then
+								dodgedThisFrame = true
+								if tick() - lastNotifTime >= notifCooldown then
+									lastNotifTime = tick()
+									notify("Killer animation detected!")
+								end
+								if ultraInstinctEnabled then
+									playDodge()
+								end
 							end
-							if ultraInstinctEnabled then
-								playDodge()
-							end
-							return
+							break
 						end
 					end
 				end
