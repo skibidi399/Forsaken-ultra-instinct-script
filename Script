@@ -176,16 +176,19 @@ RunService.Heartbeat:Connect(function()
 				local animator = hum and hum:FindFirstChildOfClass("Animator")
 				if animator then
 					for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
-						local animId = tostring(track.Animation.AnimationId):match("%d+")
-						if table.find(killerAnims, animId) then
-							if tick() - lastNotifTime >= notifCooldown then
-								lastNotifTime = tick()
-								notify("Killer animation detected!")
+						local animObj = track.Animation
+						if animObj and animObj.AnimationId then
+							local animId = tostring(animObj.AnimationId):match("%d+")
+							if animId and table.find(killerAnims, animId) then
+								if tick() - lastNotifTime >= notifCooldown then
+									lastNotifTime = tick()
+									notify("Killer animation detected!")
+								end
+								if ultraInstinctEnabled and canDodge then
+									playDodge()
+								end
+								return
 							end
-							if ultraInstinctEnabled then
-								playDodge()
-							end
-							return
 						end
 					end
 				end
