@@ -1,24 +1,9 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local StarterGui = game:GetService("StarterGui")
 local lp = Players.LocalPlayer
 
--- Settings
-local ultraInstinctOn = false
-local currentDirection = 1
-local lastDodge = 0
-local dodgeCooldown = 1
-local radius = 20
-local directions = {"Left", "Right", "Forward", "Backward"}
-
--- Replace with your real animation IDs
-local dodgeAnims = {
-	Left = "rbxassetid://YOUR_LEFT_ANIM_ID",
-	Right = "rbxassetid://YOUR_RIGHT_ANIM_ID",
-	Forward = "rbxassetid://YOUR_FORWARD_ANIM_ID",
-	Backward = "rbxassetid://YOUR_BACKWARD_ANIM_ID"
-}
-
--- Killer anim IDs to detect
+-- Killer animation IDs
 local killerAnims = {
 	"126830014841198", "126355327951215", "121086746534252", "18885909645",
 	"98456918873918", "105458270463374", "83829782357897", "125403313786645",
@@ -27,63 +12,129 @@ local killerAnims = {
 	"109667959938617", "126681776859538", "129976080405072", "121293883585738"
 }
 
--- GUI
-local function createGui()
-	local gui = Instance.new("ScreenGui", lp:WaitForChild("PlayerGui"))
-	gui.Name = "UltraInstinctGui"
-	gui.ResetOnSpawn = false
+-- UI Setup
+local screenGui = Instance.new("ScreenGui", lp:WaitForChild("PlayerGui"))
+screenGui.Name = "UltraInstinctUI"
+screenGui.ResetOnSpawn = false
 
-	local toggle = Instance.new("TextButton", gui)
-	toggle.Position = UDim2.new(0, 20, 0, 100)
-	toggle.Size = UDim2.new(0, 160, 0, 40)
-	toggle.Text = "Ultra Instinct: OFF"
-	toggle.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-	toggle.TextColor3 = Color3.new(1, 1, 1)
-	toggle.Font = Enum.Font.Gotham
-	toggle.TextScaled = true
+local directions = {"Left", "Right", "Forward", "Backward", "Random"}
+local currentDirection = 1
+local ultraInstinctEnabled = false
+local wallCheckEnabled = true
+local canDodge = true
+local lastNotifTime = 0
+local notifCooldown = 2
 
-	local directionButton = Instance.new("TextButton", gui)
-	directionButton.Position = UDim2.new(0, 20, 0, 150)
-	directionButton.Size = UDim2.new(0, 160, 0, 40)
-	directionButton.Text = "Dodge: Left"
-	directionButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-	directionButton.TextColor3 = Color3.new(1, 1, 1)
-	directionButton.Font = Enum.Font.Gotham
-	directionButton.TextScaled = true
+-- Animations
+local dodgeAnims = {
+	Left = "rbxassetid://17096325697",
+	Right = "rbxassetid://17096327600",
+	Forward = "rbxassetid://17096329187",
+	Backward = "rbxassetid://17096330733",
+}
 
-	local radiusBox = Instance.new("TextBox", gui)
-	radiusBox.Position = UDim2.new(0, 20, 0, 200)
-	radiusBox.Size = UDim2.new(0, 160, 0, 40)
-	radiusBox.Text = tostring(radius)
-	radiusBox.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-	radiusBox.TextColor3 = Color3.new(1, 1, 1)
-	radiusBox.Font = Enum.Font.Gotham
-	radiusBox.TextScaled = true
+-- Distance TextBox
+local dodgeBox = Instance.new("TextBox", screenGui)
+dodgeBox.Size = UDim2.new(0, 100, 0, 30)
+dodgeBox.Position = UDim2.new(0, 20, 0, 20)
+dodgeBox.Text = "7"
+dodgeBox.ClearTextOnFocus = false
+dodgeBox.BackgroundColor3 = Color3.fromRGB(30,30,30)
+dodgeBox.TextColor3 = Color3.new(1,1,1)
+dodgeBox.PlaceholderText = "Dodge Dist"
 
-	-- Toggle logic
-	toggle.MouseButton1Click:Connect(function()
-		ultraInstinctOn = not ultraInstinctOn
-		toggle.Text = ultraInstinctOn and "Ultra Instinct: ON" or "Ultra Instinct: OFF"
-		toggle.BackgroundColor3 = ultraInstinctOn and Color3.fromRGB(0, 170, 255) or Color3.fromRGB(50, 50, 50)
-	end)
+-- Label
+local distLabel = Instance.new("TextLabel", screenGui)
+distLabel.Size = UDim2.new(0, 100, 0, 20)
+distLabel.Position = UDim2.new(0, 20, 0, 0)
+distLabel.Text = "Dodge Distance"
+distLabel.BackgroundTransparency = 1
+distLabel.TextColor3 = Color3.new(1,1,1)
 
-	directionButton.MouseButton1Click:Connect(function()
-		currentDirection += 1
-		if currentDirection > #directions then currentDirection = 1 end
-		directionButton.Text = "Dodge: " .. directions[currentDirection]
-	end)
+-- Direction Label
+local dirLabel = Instance.new("TextLabel", screenGui)
+dirLabel.Size = UDim2.new(0, 120, 0, 30)
+dirLabel.Position = UDim2.new(0, 20, 0, 60)
+dirLabel.Text = "Direction: Left"
+dirLabel.BackgroundColor3 = Color3.fromRGB(45,45,45)
+dirLabel.TextColor3 = Color3.new(1,1,1)
 
-	radiusBox.FocusLost:Connect(function()
-		local num = tonumber(radiusBox.Text)
-		if num then
-			radius = num
+-- Switch Button
+local switchBtn = Instance.new("TextButton", screenGui)
+switchBtn.Size = UDim2.new(0, 100, 0, 30)
+switchBtn.Position = UDim2.new(0, 20, 0, 100)
+switchBtn.Text = "Switch Dir"
+switchBtn.BackgroundColor3 = Color3.fromRGB(60,60,60)
+switchBtn.TextColor3 = Color3.new(1,1,1)
+
+-- Toggle Button
+local toggleBtn = Instance.new("TextButton", screenGui)
+toggleBtn.Size = UDim2.new(0, 120, 0, 30)
+toggleBtn.Position = UDim2.new(0, 20, 0, 140)
+toggleBtn.Text = "Ultra Instinct: OFF"
+toggleBtn.BackgroundColor3 = Color3.fromRGB(80,0,0)
+toggleBtn.TextColor3 = Color3.new(1,1,1)
+
+-- Wall Check Toggle
+local wallToggle = Instance.new("TextButton", screenGui)
+wallToggle.Size = UDim2.new(0, 120, 0, 30)
+wallToggle.Position = UDim2.new(0, 20, 0, 180)
+wallToggle.Text = "Wall Check: ON"
+wallToggle.BackgroundColor3 = Color3.fromRGB(0, 100, 200)
+wallToggle.TextColor3 = Color3.new(1,1,1)
+
+-- HIDE BUTTON
+local uiVisible = true
+local hideBtn = Instance.new("TextButton", screenGui)
+hideBtn.Size = UDim2.new(0, 60, 0, 25)
+hideBtn.Position = UDim2.new(0, 130, 0, 20)
+hideBtn.Text = "Hide"
+hideBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+hideBtn.TextColor3 = Color3.new(1,1,1)
+
+hideBtn.MouseButton1Click:Connect(function()
+	uiVisible = not uiVisible
+	for _, v in ipairs(screenGui:GetChildren()) do
+		if v:IsA("GuiObject") and v ~= hideBtn then
+			v.Visible = uiVisible
 		end
-	end)
+	end
+	hideBtn.Text = uiVisible and "Hide" or "Show"
+end)
 
-	return gui
+-- Button Logic
+switchBtn.MouseButton1Click:Connect(function()
+	currentDirection = (currentDirection % #directions) + 1
+	dirLabel.Text = "Direction: " .. directions[currentDirection]
+end)
+
+toggleBtn.MouseButton1Click:Connect(function()
+	ultraInstinctEnabled = not ultraInstinctEnabled
+	toggleBtn.Text = "Ultra Instinct: " .. (ultraInstinctEnabled and "ON" or "OFF")
+	toggleBtn.BackgroundColor3 = ultraInstinctEnabled and Color3.fromRGB(0, 100, 200) or Color3.fromRGB(80,0,0)
+end)
+
+wallToggle.MouseButton1Click:Connect(function()
+	wallCheckEnabled = not wallCheckEnabled
+	wallToggle.Text = "Wall Check: " .. (wallCheckEnabled and "ON" or "OFF")
+	wallToggle.BackgroundColor3 = wallCheckEnabled and Color3.fromRGB(0, 100, 200) or Color3.fromRGB(100, 0, 0)
+end)
+
+-- Notify
+local function notify(msg)
+	pcall(function()
+		StarterGui:SetCore("SendNotification", {
+			Title = "Ultra Instinct",
+			Text = msg,
+			Duration = 2
+		})
+	end)
 end
 
+-- Dodge logic
 local function playDodge()
+	if not canDodge then return end
+	canDodge = false
 	local char = lp.Character
 	if not char then return end
 	local hrp = char:FindFirstChild("HumanoidRootPart")
@@ -91,42 +142,73 @@ local function playDodge()
 	if not hrp or not hum then return end
 
 	local dir = directions[currentDirection]
-	local offset = Vector3.new()
-
-	if dir == "Left" then
-		offset = -hrp.CFrame.RightVector * 7
-	elseif dir == "Right" then
-		offset = hrp.CFrame.RightVector * 7
-	elseif dir == "Forward" then
-		offset = hrp.CFrame.LookVector * 7
-	elseif dir == "Backward" then
-		offset = -hrp.CFrame.LookVector * 7
+	if dir == "Random" then
+		local options = {"Left", "Right", "Forward", "Backward"}
+		dir = options[math.random(1, #options)]
 	end
 
-	-- Play animation
+	local distance = tonumber(dodgeBox.Text) or 7
+	local offset = Vector3.new()
+	if dir == "Left" then
+		offset = -hrp.CFrame.RightVector * distance
+	elseif dir == "Right" then
+		offset = hrp.CFrame.RightVector * distance
+	elseif dir == "Forward" then
+		offset = hrp.CFrame.LookVector * distance
+	elseif dir == "Backward" then
+		offset = -hrp.CFrame.LookVector * distance
+	end
+
+	if wallCheckEnabled then
+		local rayParams = RaycastParams.new()
+		rayParams.FilterType = Enum.RaycastFilterType.Blacklist
+		rayParams.FilterDescendantsInstances = {char}
+		rayParams.IgnoreWater = true
+		local result = workspace:Raycast(hrp.Position, offset, rayParams)
+		if result then
+			notify("Dodge blocked by wall!")
+			canDodge = true
+			return
+		end
+	end
+
 	local anim = Instance.new("Animation")
 	anim.AnimationId = dodgeAnims[dir]
 	local track = hum:LoadAnimation(anim)
 	track:Play()
 
-	-- Instant TP
-	hrp.CFrame = hrp.CFrame + offset
+	char:PivotTo(CFrame.new(hrp.Position + offset))
+
+	task.delay(1, function()
+		canDodge = true
+	end)
 end
 
--- Watch killer animations
+-- Detection
 RunService.Heartbeat:Connect(function()
-	if not ultraInstinctOn then return end
-	if tick() - lastDodge < dodgeCooldown then return end
+	local char = lp.Character
+	if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+	local radius = 25
 
 	for _, plr in ipairs(Players:GetPlayers()) do
-		if plr ~= lp and plr.Character and (plr.Character.HumanoidRootPart.Position - lp.Character.HumanoidRootPart.Position).Magnitude < radius then
-			local animator = plr.Character:FindFirstChildWhichIsA("Humanoid") and plr.Character:FindFirstChildWhichIsA("Humanoid"):FindFirstChildOfClass("Animator")
-			if animator then
-				for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
-					if table.find(killerAnims, tostring(track.Animation.AnimationId):match("%d+")) then
-						lastDodge = tick()
-						playDodge()
-						return
+		if plr ~= lp and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+			local dist = (plr.Character.HumanoidRootPart.Position - char.HumanoidRootPart.Position).Magnitude
+			if dist <= radius then
+				local hum = plr.Character:FindFirstChildOfClass("Humanoid")
+				local animator = hum and hum:FindFirstChildOfClass("Animator")
+				if animator then
+					for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
+						local animId = tostring(track.Animation.AnimationId):match("%d+")
+						if table.find(killerAnims, animId) then
+							if tick() - lastNotifTime >= notifCooldown then
+								lastNotifTime = tick()
+								notify("Killer animation detected!")
+							end
+							if ultraInstinctEnabled then
+								playDodge()
+							end
+							return
+						end
 					end
 				end
 			end
@@ -134,12 +216,8 @@ RunService.Heartbeat:Connect(function()
 	end
 end)
 
--- GUI + Persistence
-createGui()
-
+-- Restore GUI after respawn
 lp.CharacterAdded:Connect(function()
 	task.wait(1)
-	if not lp:WaitForChild("PlayerGui"):FindFirstChild("UltraInstinctGui") then
-		createGui()
-	end
+	screenGui.Parent = lp:WaitForChild("PlayerGui")
 end)
