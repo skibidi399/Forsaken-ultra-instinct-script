@@ -20,7 +20,6 @@ screenGui.ResetOnSpawn = false
 local directions = {"Left", "Right", "Forward", "Backward", "Random"}
 local currentDirection = 1
 local ultraInstinctEnabled = false
-local WallCheckEnabled = false
 local canDodge = true
 local lastNotifTime = 0
 local notifCooldown = 2
@@ -151,19 +150,6 @@ local function playDodge()
 		offset = -hrp.CFrame.LookVector * distance
 	end
 
-	if wallCheckEnabled then
-		local rayParams = RaycastParams.new()
-		rayParams.FilterType = Enum.RaycastFilterType.Blacklist
-		rayParams.FilterDescendantsInstances = {char}
-		rayParams.IgnoreWater = true
-		local result = workspace:Raycast(hrp.Position, offset, rayParams)
-		if result then
-			notify("Dodge blocked by wall!")
-			canDodge = true
-			return
-		end
-	end
-
 	local anim = Instance.new("Animation")
 	anim.AnimationId = dodgeAnims[dir]
 	local track = hum:LoadAnimation(anim)
@@ -196,7 +182,7 @@ RunService.Heartbeat:Connect(function()
 								lastNotifTime = tick()
 								notify("Killer animation detected!")
 							end
-							if ultraInstinctEnabled and canDodge then
+							if ultraInstinctEnabled then
 								playDodge()
 							end
 							return
