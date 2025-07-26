@@ -20,7 +20,7 @@ screenGui.ResetOnSpawn = false
 local directions = {"Left", "Right", "Forward", "Backward", "Random"}
 local currentDirection = 1
 local ultraInstinctEnabled = false
-local wallCheckEnabled = true
+local WallCheckEnabled = false
 local canDodge = true
 local lastNotifTime = 0
 local notifCooldown = 2
@@ -74,14 +74,6 @@ toggleBtn.Position = UDim2.new(0, 20, 0, 140)
 toggleBtn.Text = "Ultra Instinct: OFF"
 toggleBtn.BackgroundColor3 = Color3.fromRGB(80,0,0)
 toggleBtn.TextColor3 = Color3.new(1,1,1)
-
--- Wall Check Toggle
-local wallToggle = Instance.new("TextButton", screenGui)
-wallToggle.Size = UDim2.new(0, 120, 0, 30)
-wallToggle.Position = UDim2.new(0, 20, 0, 180)
-wallToggle.Text = "Wall Check: ON"
-wallToggle.BackgroundColor3 = Color3.fromRGB(0, 100, 200)
-wallToggle.TextColor3 = Color3.new(1,1,1)
 
 -- HIDE BUTTON
 local uiVisible = true
