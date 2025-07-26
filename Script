@@ -157,7 +157,7 @@ local function playDodge()
 
 	char:PivotTo(CFrame.new(hrp.Position + offset))
 
-	task.delay(1, function()
+	task.delay(2, function()
 		canDodge = true
 	end)
 end
